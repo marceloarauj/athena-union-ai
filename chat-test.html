@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Chat Test - SSE</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: sans-serif; background: #f5f5f5; display: flex; justify-content: center; padding: 40px 16px; }
+    .container { width: 100%; max-width: 720px; display: flex; flex-direction: column; gap: 16px; }
+    h1 { font-size: 1.4rem; color: #333; }
+    .input-row { display: flex; gap: 8px; }
+    textarea {
+      flex: 1; padding: 10px 12px; border: 1px solid #ccc; border-radius: 6px;
+      font-size: 1rem; resize: vertical; min-height: 80px;
+    }
+    button {
+      padding: 10px 20px; background: #4f46e5; color: #fff; border: none;
+      border-radius: 6px; font-size: 1rem; cursor: pointer; align-self: flex-end;
+    }
+    button:disabled { background: #a5a0f5; cursor: not-allowed; }
+    #output {
+      background: #fff; border: 1px solid #ddd; border-radius: 6px;
+      padding: 16px; min-height: 200px; white-space: pre-wrap; font-size: 0.95rem;
+      line-height: 1.6; color: #222;
+    }
+    .status { font-size: 0.8rem; color: #888; }
+    .status.error { color: #dc2626; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Chat Controller — SSE Test</h1>
+
+    <div class="input-row">
+      <textarea id="prompt" placeholder="Digite seu prompt aqui..."></textarea>
+      <button id="sendBtn" onclick="sendPrompt()">Enviar</button>
+    </div>
+
+    <span id="status" class="status"></span>
+    <div id="output"></div>
+  </div>
+
+  <script>
+    const API_BASE = "http://localhost:5037";
+    let currentSource = null;
+
+    function sendPrompt() {
+      const prompt = document.getElementById('prompt').value.trim();
+      if (!prompt) return;
+
+      if (currentSource) {
+        currentSource.close();
+        currentSource = null;
+      }
+
+      const output = document.getElementById('output');
+      const status = document.getElementById('status');
+      const btn = document.getElementById('sendBtn');
+
+      output.textContent = '';
+      status.textContent = 'Conectando...';
+      status.className = 'status';
+      btn.disabled = true;
+
+      const url = `${API_BASE}/api/chat/stream?prompt=${encodeURIComponent(prompt)}`;
+      const source = new EventSource(url);
+      currentSource = source;
+
+      source.onopen = () => {
+        status.textContent = 'Streaming...';
+      };
+
+      source.onmessage = (e) => {
+        output.textContent += e.data;
+      };
+
+      source.onerror = () => {
+        source.close();
+        currentSource = null;
+        btn.disabled = false;
+        if (output.textContent) {
+          status.textContent = 'Concluído.';
+        } else {
+          status.textContent = 'Erro ao conectar. Verifique se a API está rodando em ' + API_BASE;
+          status.className = 'status error';
+        }
+      };
+    }
+
+    document.getElementById('prompt').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) sendPrompt();
+    });
+  </script>
+</body>
+</html>

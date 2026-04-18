@@ -1,0 +1,6 @@
+@AthenaUnionAI_HostAddress = http://localhost:5037
+
+GET {{AthenaUnionAI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

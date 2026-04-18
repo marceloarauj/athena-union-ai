@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="AthenaUnionAI.Application/AthenaUnionAI.Application.csproj" />
+  <Project Path="AthenaUnionAI.Domain/AthenaUnionAI.Domain.csproj" />
+  <Project Path="AthenaUnionAI.Infrastructure/AthenaUnionAI.Infrastructure.csproj" />
+  <Project Path="AthenaUnionAI/AthenaUnionAI.csproj" />
+</Solution>
