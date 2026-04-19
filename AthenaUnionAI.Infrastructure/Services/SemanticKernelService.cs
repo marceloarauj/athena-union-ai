@@ -1,6 +1,4 @@
-using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
-using System.Text.Json;
 using AthenaUnionAI.Application.Interfaces.Services;
 using AthenaUnionAI.Infrastructure.Plugins;
 using Microsoft.Extensions.Configuration;
@@ -15,10 +13,10 @@ namespace AthenaUnionAI.Infrastructure.Services
         private readonly Kernel _kernel;
         private readonly IChatCompletionService _chat;
 
-        public SemanticKernelService(IConfiguration configuration, IHttpClientFactory httpClientFactory) 
+        public SemanticKernelService(IConfiguration configuration, IHttpClientFactory httpClientFactory)
         {
-            var endpoint = configuration["Ollama:Endpoint"] ?? throw new ArgumentNullException("Ollama endpoint is not configured.");
-            var model = configuration["Ollama:Model"] ?? throw new ArgumentNullException("Ollama model is not configured.");
+            var endpoint = configuration["AutomationModel:Endpoint"] ?? throw new ArgumentNullException("AutomationModel endpoint is not configured.");
+            var model = configuration["AutomationModel:Model"] ?? throw new ArgumentNullException("AutomationModel model is not configured.");
 
             var builder = Kernel.CreateBuilder();
 
@@ -35,47 +33,20 @@ namespace AthenaUnionAI.Infrastructure.Services
             _chat = _kernel.GetRequiredService<IChatCompletionService>();
         }
 
-        public async IAsyncEnumerable<string> StreamAsync(string prompt, [EnumeratorCancellation] CancellationToken ct=default)
+        public async IAsyncEnumerable<string> StreamAsync(string prompt, [EnumeratorCancellation] CancellationToken ct = default)
         {
-            var request = new
+            var history = new ChatHistory();
+            history.AddUserMessage(prompt);
+
+            var settings = new OpenAIPromptExecutionSettings
             {
-                model = "llama3",
-                prompt = prompt,
-                stream = true
+                FunctionChoiceBehavior = FunctionChoiceBehavior.Auto()
             };
-            
-            HttpClient http = new();
-            
-            var response = await http.PostAsJsonAsync
-            (
-                "http://localhost:11434/api/generate",
-                request,
-                ct
-            );
 
-            await using var stream = await response.Content.ReadAsStreamAsync(ct);
-            using var reader = new StreamReader(stream);
-
-            while (true)
+            await foreach (var chunk in _chat.GetStreamingChatMessageContentsAsync(history, settings, _kernel, ct))
             {
-                var line = await reader.ReadLineAsync();
-
-                if (line is null)
-                    yield break;
-
-                if (string.IsNullOrWhiteSpace(line))
-                    continue;
-
-                var json = JsonDocument.Parse(line);
-
-                var token = json.RootElement
-                    .GetProperty("response")
-                    .GetString();
-
-                if (!string.IsNullOrEmpty(token))
-                {
-                    yield return token;
-                }
+                if (!string.IsNullOrEmpty(chunk.Content))
+                    yield return chunk.Content;
             }
         }
     }

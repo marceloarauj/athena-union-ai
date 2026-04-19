@@ -20,9 +20,22 @@ namespace AthenaUnionAI.Controllers
             Response.Headers.CacheControl = "no-cache";
             Response.Headers["X-Accel-Buffering"] = "no";
 
-            await foreach (var message in _generativeAIService.StreamAsync(prompt, ct))
+            HttpContext.Features.Get<Microsoft.AspNetCore.Http.Features.IHttpResponseBodyFeature>()?.DisableBuffering();
+
+            try
             {
-                await Response.WriteAsync($"data: {message}\n\n", ct);
+                await foreach (var message in _generativeAIService.StreamAsync(prompt, ct))
+                {
+                    var lines = message.Split('\n');
+                    var sseEvent = string.Join("\n", lines.Select(l => $"data: {l}")) + "\n\n";
+                    await Response.WriteAsync(sseEvent, ct);
+                    await Response.Body.FlushAsync(ct);
+                }
+            }
+            catch (Exception ex)
+            {
+                var details = ex.ToString().Replace("\n", " ").Replace("\r", "");
+                await Response.WriteAsync($"event: error\ndata: {details}\n\n", ct);
                 await Response.Body.FlushAsync(ct);
             }
         }

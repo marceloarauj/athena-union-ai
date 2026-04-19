@@ -74,7 +74,17 @@
         output.textContent += e.data;
       };
 
+      source.addEventListener('error', (e) => {
+        if (!e.data) return; // fechamento normal de conexão — deixa o onerror tratar
+        source.close();
+        currentSource = null;
+        btn.disabled = false;
+        status.textContent = 'Erro: ' + e.data;
+        status.className = 'status error';
+      });
+
       source.onerror = () => {
+        if (source.readyState === EventSource.CLOSED) return;
         source.close();
         currentSource = null;
         btn.disabled = false;
