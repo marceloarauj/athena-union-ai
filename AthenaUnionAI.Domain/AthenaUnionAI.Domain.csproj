@@ -10,5 +10,10 @@
     <Folder Include="Models\" />
     <Folder Include="Prompts\" />
   </ItemGroup>
-
+  <ItemGroup>
+    <EmbeddedResource Include="Models\Prompts\ResponsePattern.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Pgvector" Version="0.3.2" />
+  </ItemGroup>
 </Project>

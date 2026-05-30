@@ -2,7 +2,7 @@ using AthenaUnionAI.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddServices();
+builder.Services.AddServices(builder.Configuration);
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
