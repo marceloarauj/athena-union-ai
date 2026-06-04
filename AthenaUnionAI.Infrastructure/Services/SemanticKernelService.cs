@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using AthenaUnionAI.Application.Interfaces.Services;
+using AthenaUnionAI.Application.Models.Enums;
 using AthenaUnionAI.Infrastructure.Plugins;
 using Microsoft.Extensions.Configuration;
 using Microsoft.SemanticKernel;
@@ -16,21 +17,26 @@ namespace AthenaUnionAI.Infrastructure.Services
         private readonly IChatCompletionService _chat;
         private readonly EmbeddingService _embeddingService;
         private readonly DocumentSearchService _documentSearchService;
+        private readonly ServiceType _serviceType;
 
-        public SemanticKernelService(
+        public SemanticKernelService
+        (
+            ServiceType serviceType,
             IConfiguration configuration,
             IHttpClientFactory httpClientFactory,
             EmbeddingService embeddingService,
-            DocumentSearchService documentSearchService)
+            DocumentSearchService documentSearchService
+        )
         {
-            var endpoint = configuration["AutomationModel:Endpoint"]
-                ?? throw new ArgumentNullException("AutomationModel:Endpoint is not configured.");
-                
-            var model = configuration["AutomationModel:Model"]
-                ?? throw new ArgumentNullException("AutomationModel:Model is not configured.");
+            _serviceType = serviceType;
 
-            var builder = Kernel.CreateBuilder();
-            builder.Plugins.AddFromObject(new TestePlugin(httpClientFactory.CreateClient()));
+            var endpoint = configuration["AutomationModel:Endpoint"];
+            var model = configuration["AutomationModel:Model"];
+
+            if (endpoint == null || model == null)
+                throw new InvalidOperationException("Endpoint and Model must be configured.");
+
+            var builder = BuildKernel(httpClientFactory);
             builder.AddOpenAIChatCompletion(modelId: model, endpoint: new Uri(endpoint), apiKey: "none");
 
             _kernel = builder.Build();
@@ -39,14 +45,30 @@ namespace AthenaUnionAI.Infrastructure.Services
             _documentSearchService = documentSearchService;
         }
 
+        private IKernelBuilder BuildKernel(IHttpClientFactory httpClientFactory)
+        {
+            var builder = Kernel.CreateBuilder();
+
+            if (_serviceType == ServiceType.Assistant)
+                builder.Plugins.AddFromObject(new DisciplinePlugin(httpClientFactory.CreateClient()));
+
+            return builder;
+        }
+
         public async IAsyncEnumerable<string> StreamAsync(string prompt, [EnumeratorCancellation] CancellationToken ct = default)
         {
             var assembly = Assembly.Load("AthenaUnionAI.Domain");
-            using var stream = assembly.GetManifestResourceStream("AthenaUnionAI.Domain.Models.Prompts.ResponsePattern.txt");
+            var resourceName = _serviceType == ServiceType.Documentation
+                ? "AthenaUnionAI.Domain.Models.Prompts.DocumentationPattern.txt"
+                : "AthenaUnionAI.Domain.Models.Prompts.AssistantPattern.txt";
+
+            using var stream = assembly.GetManifestResourceStream(resourceName);
             using var reader = new StreamReader(stream!);
             var template = reader.ReadToEnd();
 
-            var context = await BuildContextAsync(prompt, ct);
+            var context = _serviceType == ServiceType.Documentation
+                ? await BuildContextAsync(prompt, ct)
+                : string.Empty;
 
             var finalPrompt = template
                 .Replace("{{context}}", context)

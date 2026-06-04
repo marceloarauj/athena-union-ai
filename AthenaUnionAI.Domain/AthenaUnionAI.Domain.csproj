@@ -11,7 +11,8 @@
     <Folder Include="Prompts\" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Models\Prompts\ResponsePattern.txt" />
+    <EmbeddedResource Include="Models\Prompts\AssistantPattern.txt" />
+    <EmbeddedResource Include="Models\Prompts\DocumentationPattern.txt" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Pgvector" Version="0.3.2" />

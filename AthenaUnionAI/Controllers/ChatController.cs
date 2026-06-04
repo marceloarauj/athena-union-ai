@@ -1,30 +1,36 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using AthenaUnionAI.Application.Interfaces.Services;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AthenaUnionAI.Controllers
 {
+    public record ChatRequest(string Prompt);
+
     [ApiController]
     [Route("api/[controller]")]
-    public class ChatController(IGenerativeAIService generativeAIService) : ControllerBase
+    public class ChatController(
+        [FromKeyedServices("assistant")] IGenerativeAIService assistantService,
+        [FromKeyedServices("documentation")] IGenerativeAIService documentationService) : ControllerBase
     {
-        private readonly IGenerativeAIService _generativeAIService = generativeAIService;
+        [HttpPost("assistant")]
+        public async Task Assistant([FromBody] ChatRequest request, CancellationToken ct)
+            => await StreamResponse(assistantService, request.Prompt, ct);
 
-        [HttpGet("stream")]
-        public async Task Stream([FromQuery] string prompt, CancellationToken ct)
+        [HttpPost("documentation")]
+        public async Task Documentation([FromBody] ChatRequest request, CancellationToken ct)
+            => await StreamResponse(documentationService, request.Prompt, ct);
+
+        private async Task StreamResponse(IGenerativeAIService service, string prompt, CancellationToken ct)
         {
             Response.Headers.ContentType = "text/event-stream";
             Response.Headers.CacheControl = "no-cache";
             Response.Headers["X-Accel-Buffering"] = "no";
 
-            HttpContext.Features.Get<Microsoft.AspNetCore.Http.Features.IHttpResponseBodyFeature>()?.DisableBuffering();
+            HttpContext.Features.Get<IHttpResponseBodyFeature>()?.DisableBuffering();
 
             try
             {
-                await foreach (var message in _generativeAIService.StreamAsync(prompt, ct))
+                await foreach (var message in service.StreamAsync(prompt, ct))
                 {
                     var lines = message.Split('\n');
                     var sseEvent = string.Join("\n", lines.Select(l => $"data: {l}")) + "\n\n";
