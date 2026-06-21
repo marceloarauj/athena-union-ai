@@ -38,7 +38,7 @@ namespace AthenaUnionAI.Infrastructure.Services
                 try
                 {
                     var exists = await dbContext.DocumentationChunks
-                        .AnyAsync(chunk => chunk.FileName == chunk.FileName && chunk.Section == chunk.Section, cancellationToken);
+                        .AnyAsync(doc => doc.FileName == chunk.FileName && doc.Section == chunk.Section, cancellationToken);
 
                     if (exists)
                     {
